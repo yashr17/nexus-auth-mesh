@@ -1,0 +1,38 @@
+name: Manual Branch Build
+
+on:
+  # This tells GitHub to create a "Run workflow" button in the Actions tab.
+  # The UI will automatically provide a dropdown to select the branch.
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # We mirror the exact same testing environment here
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexus_user
+          POSTGRES_PASSWORD: nexus_pass
+          POSTGRES_DB: nexus_db
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Build with Maven
+      run: ./mvnw clean install
