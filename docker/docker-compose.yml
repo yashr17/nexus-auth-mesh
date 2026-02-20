@@ -1,0 +1,29 @@
+services:
+  nexus-db:
+    image: postgres:16-alpine
+    container_name: nexus-db
+    environment:
+      - POSTGRES_USER=nexus_user
+      - POSTGRES_PASSWORD=nexus_pass
+      - POSTGRES_DB=nexus_db
+    ports:
+      - "5432:5432"
+    networks:
+      - nexus-network
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  nexus-redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
