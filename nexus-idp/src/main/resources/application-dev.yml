@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/nexus_db
+    username: nexus_user
+    password: nexus_pass
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    # Highly useful for local debugging
+    show-sql: true
+    hibernate:
+      # strictly validates our Java entities against the Flyway database tables
+      ddl-auto: validate
+    properties:
+      hibernate:
+        '[format_sql]': true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true

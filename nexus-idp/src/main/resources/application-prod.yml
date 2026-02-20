@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    # These values are injected by the host server at runtime
+    url: ${PROD_DB_URL}
+    username: ${PROD_DB_USER}
+    password: ${PROD_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    # We turn off SQL logging in production to save server memory and prevent data leaks in logs
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true

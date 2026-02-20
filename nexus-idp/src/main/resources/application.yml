@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: nexus-idp
+
+  # This tells Spring: "If I don't explicitly tell you which environment I am in, assume I am in DEV."
+  profiles:
+    active: dev
+
+# The port remains the same across all environments for consistency
+server:
+  port: 8081
