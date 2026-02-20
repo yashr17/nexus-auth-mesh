@@ -7,7 +7,7 @@ services:
       - POSTGRES_PASSWORD=nexus_pass
       - POSTGRES_DB=nexus_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       - nexus-network
     volumes:

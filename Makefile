@@ -30,6 +30,18 @@ status:
 clean-data:
 	$(DC) down -v
 
+# Clean the Java project
+clean:
+	.\mvnw.cmd clean
+
 # Full build of the Java project
-build-java:
-	./mvnw clean install
+clean-install:
+	.\mvnw.cmd clean install
+
+# Connect to redis-cli
+redis:
+	docker exec -it nexus-redis redis-cli
+
+# Connect to pgsql
+pg:
+	docker exec -it nexus-db psql -U nexus_user -d nexus_db
