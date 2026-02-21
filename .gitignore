@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local Crypto Keys
+nexus-idp/src/main/resources/certs/*.pem

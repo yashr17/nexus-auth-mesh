@@ -18,3 +18,7 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+
+rsa:
+  public-key: classpath:certs/public.pem
+  private-key: classpath:certs/private.pem
