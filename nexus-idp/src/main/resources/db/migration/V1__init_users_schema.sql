@@ -29,3 +29,15 @@ INSERT INTO roles (id, name, description)
 VALUES 
     ('018e47b1-4b1a-7b5a-9b1a-000000000001', 'ROLE_USER', 'Standard authenticated user'),
     ('018e47b1-4b1a-7b5a-9b1a-000000000002', 'ROLE_ADMIN', 'System administrator with full access');
+
+-- Insert a dummy admin user for testing (Password: password123)
+-- The hash below is the BCrypt representation of 'password123' with a cost factor of 10
+INSERT INTO users (id, email, password_hash, is_locked) 
+VALUES 
+    ('018e47b1-4b1a-7b5a-9b1a-000000000003', 'admin@nexus.com', '$2a$10$rGJfll8cbIbXEQNarHagsOmXPNoaSzombhnsCVHGyhZJiFjzWZCj6', FALSE);
+
+-- Map the admin user to both ROLE_USER and ROLE_ADMIN using the hardcoded UUIDs
+INSERT INTO user_roles (user_id, role_id) 
+VALUES 
+    ('018e47b1-4b1a-7b5a-9b1a-000000000003', '018e47b1-4b1a-7b5a-9b1a-000000000001'), -- ROLE_USER
+    ('018e47b1-4b1a-7b5a-9b1a-000000000003', '018e47b1-4b1a-7b5a-9b1a-000000000002'); -- ROLE_ADMIN
