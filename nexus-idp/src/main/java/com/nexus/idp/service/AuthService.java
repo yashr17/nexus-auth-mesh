@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +16,8 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import com.nexus.common.exception.BadCredentialsException;
+import com.nexus.common.exception.DuplicateResourceException;
+import com.nexus.common.exception.ResourceNotFoundException;
 import com.nexus.idp.config.RsaKeyProperties;
 import com.nexus.idp.dto.LoginRequest;
 import com.nexus.idp.dto.LoginResponse;
@@ -107,18 +108,18 @@ public class AuthService {
     }
 
     public void register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email is already in use");
+        if (userRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("Email is already registered");
         }
 
         Role defauRole = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new RuntimeException("Default role not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Default role not found"));
 
         User newUser = User.builder()
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .roles(Set.of(defauRole))
+                .email(request.email().toLowerCase())
+                .passwordHash(passwordEncoder.encode(request.password()))
                 .build();
+        newUser.getRoles().add(defauRole);
 
         userRepository.save(newUser);
     }

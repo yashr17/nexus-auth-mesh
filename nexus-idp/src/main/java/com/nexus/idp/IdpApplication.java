@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 
 import com.nexus.idp.config.RsaKeyProperties;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.nexus")
 @EnableConfigurationProperties(RsaKeyProperties.class)
 public class IdpApplication {
     public static void main(String[] args) {
