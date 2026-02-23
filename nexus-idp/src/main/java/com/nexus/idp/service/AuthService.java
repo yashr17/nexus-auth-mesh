@@ -16,10 +16,15 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 import com.nexus.common.exception.BadCredentialsException;
+import com.nexus.common.exception.DuplicateResourceException;
+import com.nexus.common.exception.ResourceNotFoundException;
 import com.nexus.idp.config.RsaKeyProperties;
 import com.nexus.idp.dto.LoginRequest;
 import com.nexus.idp.dto.LoginResponse;
+import com.nexus.idp.dto.RegisterRequest;
+import com.nexus.idp.entity.Role;
 import com.nexus.idp.entity.User;
+import com.nexus.idp.repository.RoleRepository;
 import com.nexus.idp.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -31,11 +36,13 @@ public class AuthService {
     private final RsaKeyProperties rsaKeys;
     private final JwtEncoder jwtEncoder;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
 
     @Value("${nexus.idp.token.expiration:3600}")
     private long tokenExpirationSeconds;
+
 
     public String getPublicKeyAsPem() {
         byte[] encoded = rsaKeys.publicKey().getEncoded();
@@ -98,5 +105,22 @@ public class AuthService {
         byte[] keyBytes = new byte[32];
         new SecureRandom().nextBytes(keyBytes);
         return Base64.getEncoder().encodeToString(keyBytes);
+    }
+
+    public void register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new DuplicateResourceException("Email is already registered");
+        }
+
+        Role defauRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new ResourceNotFoundException("Default role not found"));
+
+        User newUser = User.builder()
+                .email(request.email().toLowerCase())
+                .passwordHash(passwordEncoder.encode(request.password()))
+                .build();
+        newUser.getRoles().add(defauRole);
+
+        userRepository.save(newUser);
     }
 }
