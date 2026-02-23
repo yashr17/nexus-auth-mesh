@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,10 @@ import com.nexus.common.exception.BadCredentialsException;
 import com.nexus.idp.config.RsaKeyProperties;
 import com.nexus.idp.dto.LoginRequest;
 import com.nexus.idp.dto.LoginResponse;
+import com.nexus.idp.dto.RegisterRequest;
+import com.nexus.idp.entity.Role;
 import com.nexus.idp.entity.User;
+import com.nexus.idp.repository.RoleRepository;
 import com.nexus.idp.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -31,11 +35,13 @@ public class AuthService {
     private final RsaKeyProperties rsaKeys;
     private final JwtEncoder jwtEncoder;
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
 
     @Value("${nexus.idp.token.expiration:3600}")
     private long tokenExpirationSeconds;
+
 
     public String getPublicKeyAsPem() {
         byte[] encoded = rsaKeys.publicKey().getEncoded();
@@ -98,5 +104,22 @@ public class AuthService {
         byte[] keyBytes = new byte[32];
         new SecureRandom().nextBytes(keyBytes);
         return Base64.getEncoder().encodeToString(keyBytes);
+    }
+
+    public void register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email is already in use");
+        }
+
+        Role defauRole = roleRepository.findByName("ROLE_USER")
+                .orElseThrow(() -> new RuntimeException("Default role not found"));
+
+        User newUser = User.builder()
+                .email(request.getEmail())
+                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .roles(Set.of(defauRole))
+                .build();
+
+        userRepository.save(newUser);
     }
 }
