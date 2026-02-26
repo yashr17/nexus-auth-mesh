@@ -1,0 +1,18 @@
+server:
+  # In production, Gateways usually listen on standard HTTP port 80 or HTTPS port 443
+  port: 80
+
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: identity-service
+          # Assuming you deploy using Docker/Kubernetes, the IDP will be reachable via its container name
+          uri: http://nexus-idp:8081 
+          predicates:
+            - Path=/auth/**
+
+logging:
+  level:
+    # Keep production logs quiet to save disk space and CPU
+    '[org.springframework.cloud.gateway]': INFO
