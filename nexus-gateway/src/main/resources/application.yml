@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: nexus-gateway
+  profiles:
+    # This tells Spring: "Boot up using application-dev.yml by default"
+    active: dev
