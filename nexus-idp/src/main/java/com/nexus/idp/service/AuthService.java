@@ -94,9 +94,9 @@ public class AuthService {
 
     private String generateSessionKeyAndSaveToRedis(User user) {
         String sessionKey = generateSessionKey();
-        // Store session key in Redis with a TTL of 1 hour
+        // Store session key in Redis with a TTL matching the JWT expiration
         String redisKey = "session:" + user.getEmail().toLowerCase();
-        redisTemplate.opsForValue().set(redisKey, sessionKey, Duration.of(1, ChronoUnit.HOURS));
+        redisTemplate.opsForValue().set(redisKey, sessionKey, Duration.of(tokenExpirationSeconds, ChronoUnit.SECONDS));
         return sessionKey;
     }
 
