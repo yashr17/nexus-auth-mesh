@@ -23,11 +23,14 @@ public class JwtValidator {
 
     public JwtValidator(@Value("${nexus.security.jwt.public-key}") Resource publicKeyResource) throws Exception {
         this.publicKey = loadPublicKey(publicKeyResource);
-        log.info("RSA Public key loaded succesfully from {}", publicKeyResource.getFilename());
+        log.info("RSA Public key loaded successfully from {}", publicKeyResource.getFilename());
     }
 
     private RSAPublicKey loadPublicKey(Resource resource) throws Exception {
-        String keyData = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        String keyData;
+        try (var inputStream = resource.getInputStream()) {
+            keyData = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
 
         String publicKeyPEM = keyData
                 .replace("-----BEGIN PUBLIC KEY-----", "")
@@ -40,7 +43,6 @@ public class JwtValidator {
         
         return (RSAPublicKey) keyFactory.generatePublic(keySpec);
     }
-
     public Claims validateToken(String token) {
         return Jwts.parser()
                 .verifyWith(this.publicKey)

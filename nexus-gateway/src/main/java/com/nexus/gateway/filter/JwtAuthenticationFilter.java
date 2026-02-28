@@ -10,25 +10,35 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.server.PathContainer;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import com.nexus.gateway.security.JwtValidator;
 
 import io.jsonwebtoken.Claims;
-import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private final JwtValidator jwtValidator;
+    private final List<PathPattern> openEndpointPatterns;
 
-    @Value("${nexus.security.open-endpoints}")
-    private List<String> openEndpoints;
+    public JwtAuthenticationFilter(
+            JwtValidator jwtValidator,
+            @Value("${nexus.security.open-endpoints:/auth/login}") List<String> openEndpoints) {
+        this.jwtValidator = jwtValidator;
+
+        PathPatternParser parser = new PathPatternParser();
+        this.openEndpointPatterns = openEndpoints.stream()
+                .map(parser::parse)
+                .toList();
+    }
 
     @Override
     public int getOrder() {
@@ -39,8 +49,9 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
+        PathContainer pathContainer = request.getPath().pathWithinApplication();
 
-        if(openEndpoints.stream().anyMatch(path::contains)) {
+        if (openEndpointPatterns.stream().anyMatch(pattern -> pattern.matches(pathContainer))) {
             log.debug("Permitting public endpoint: {}", path);
             return chain.filter(exchange);
         }
@@ -51,13 +62,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
 
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.warn("Invalid Authorization header format for path: {}", path);
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
 
         String token = authHeader.substring(7);
-        try{
+        try {
             Claims claims = jwtValidator.validateToken(token);
             String userId = claims.getSubject();
 
@@ -71,7 +82,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             log.debug("JWT valid. Forwarding request {} with X-User-Id {}", path, userId);
             return chain.filter(mutatedExchange);
         } catch (Exception e) {
-            log.error("Error validating JWT token for path: {} | Exception: {}", path, e);
+            log.error("Error validating JWT token for path: {}", path, e);
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
     }

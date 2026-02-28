@@ -112,14 +112,14 @@ public class AuthService {
             throw new DuplicateResourceException("Email is already registered");
         }
 
-        Role defauRole = roleRepository.findByName("ROLE_USER")
+        Role defaultRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new ResourceNotFoundException("Default role not found"));
 
         User newUser = User.builder()
                 .email(request.email().toLowerCase())
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .build();
-        newUser.getRoles().add(defauRole);
+        newUser.getRoles().add(defaultRole);
 
         userRepository.save(newUser);
     }
