@@ -33,3 +33,9 @@ logging:
   level:
     # Gives you detailed routing logs locally so you can see exactly where traffic goes
     '[org.springframework.cloud.gateway]': TRACE
+
+nexus:
+  security:
+    jwt:
+      public-key: classpath:certs/public.pem
+    open-endpoints: /auth/register,/auth/login,/auth/public-key
