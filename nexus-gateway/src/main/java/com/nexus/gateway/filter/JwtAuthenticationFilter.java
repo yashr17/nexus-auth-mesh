@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return 0;
+        return -20;
     }
 
     @Override

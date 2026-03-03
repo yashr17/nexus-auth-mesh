@@ -16,7 +16,7 @@ public class LoggingFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1; // Ensure this filter runs before the default filters
+        return -30; // Ensure this filter runs before the default filters
     }
 
     @Override
