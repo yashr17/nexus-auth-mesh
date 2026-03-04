@@ -23,6 +23,7 @@
         <module>nexus-common</module>
         <module>nexus-idp</module>
         <module>nexus-gateway</module>
+        <module>nexus-wallet</module>
     </modules>
 
     <properties>
