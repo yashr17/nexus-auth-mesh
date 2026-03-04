@@ -2,13 +2,18 @@ server:
   port: 8080
 
 spring:
+  data:
+    redis:
+      lettuce:
+        pool:
+          max-active: 100
   cloud:
     gateway:
       default-filters:
-      - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
       globalcors:
         cors-configurations:
-          '[/**]':
+          "[/**]":
             allowedOrigins: "http://localhost:3000"
             allowedMethods:
               - GET
@@ -17,10 +22,10 @@ spring:
               - DELETE
               - OPTIONS
             allowed-headers:
-            - "*"
+              - "*"
             exposed-headers:
-            - Authorization
-            - X-Session-Key
+              - Authorization
+              - X-Session-Key
             allowCredentials: true
 
       routes:
@@ -28,11 +33,41 @@ spring:
           uri: http://localhost:8081
           predicates:
             - Path=/auth/**
-          
+
+        - id: dummy-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/dummy/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                "[redis-rate-limiter.replenishRate]": 10 # Tokens added to the bucket per second
+                "[redis-rate-limiter.burstCapacity]": 20 # Maximum burst size allowed in a single second
+                "[redis-rate-limiter.requestedTokens]": 1 # Tokens consumed per request
+                "[key-resolver]": "#{@userKeyResolver}" # References the Bean we created in Step 2
+            - name: CircuitBreaker
+              args:
+                name: dummyServiceBreaker
+                fallbackUri: forward:/fallback/dummy
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      dummyServiceBreaker:
+        slidingWindowSize: 10 # Evaluates the last 10 requests
+        failureRateThreshold: 50 # If 50% (5 out of 10) fail, trip the circuit to OPEN
+        waitDurationInOpenState: 10s # Wait 10 seconds before testing if the service is back
+        permittedNumberOfCallsInHalfOpenState: 3 # Let 3 requests through to test recovery
+        minimumNumberOfCalls: 5 # Require at least 5 requests before calculating failure rate
+  timelimiter:
+    instances:
+      dummyServiceBreaker:
+        timeoutDuration: 3s # If Tomcat takes longer than 3 seconds to reply, count it as a failure
+
 logging:
   level:
     # Gives you detailed routing logs locally so you can see exactly where traffic goes
-    '[org.springframework.cloud.gateway]': TRACE
+    "[org.springframework.cloud.gateway]": TRACE
 
 nexus:
   security:
