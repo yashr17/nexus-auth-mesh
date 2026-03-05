@@ -29,15 +29,15 @@ spring:
             allowCredentials: true
 
       routes:
-        - id: identity-service
+        - id: nexus-idp
           uri: http://localhost:8081
           predicates:
             - Path=/auth/**
 
-        - id: dummy-service
-          uri: http://localhost:8081
+        - id: nexus-wallet
+          uri: http://localhost:8082
           predicates:
-            - Path=/dummy/**
+            - Path=/api/wallet/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -47,13 +47,13 @@ spring:
                 "[key-resolver]": "#{@userKeyResolver}" # References the Bean we created in Step 2
             - name: CircuitBreaker
               args:
-                name: dummyServiceBreaker
-                fallbackUri: forward:/fallback/dummy
+                name: walletServiceBreaker
+                fallbackUri: forward:/fallback/wallet
 
 resilience4j:
   circuitbreaker:
     instances:
-      dummyServiceBreaker:
+      walletServiceBreaker:
         slidingWindowSize: 10 # Evaluates the last 10 requests
         failureRateThreshold: 50 # If 50% (5 out of 10) fail, trip the circuit to OPEN
         waitDurationInOpenState: 10s # Wait 10 seconds before testing if the service is back
@@ -61,7 +61,7 @@ resilience4j:
         minimumNumberOfCalls: 5 # Require at least 5 requests before calculating failure rate
   timelimiter:
     instances:
-      dummyServiceBreaker:
+      walletServiceBreaker:
         timeoutDuration: 3s # If Tomcat takes longer than 3 seconds to reply, count it as a failure
 
 logging:

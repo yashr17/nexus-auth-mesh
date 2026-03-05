@@ -15,6 +15,7 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -48,13 +49,13 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
 
         if (path.startsWith("/auth/")) {
-            log.info("PayloadShield bypassed for public auth route {}", path);
+            log.trace("PayloadShield bypassed for public auth route {}", path);
             return chain.filter(exchange);
         }
 
         String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
         if (userId == null) {
-            log.warn("PayloadShield blocked request: Missing X-User-Id for protected path {}", path);
+            log.error("PayloadShield blocked request: Missing X-User-Id for protected path {}", path);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
@@ -63,7 +64,7 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
         return redisTemplate.opsForValue().get(redisKey)
                 .switchIfEmpty(Mono.error(new RuntimeException("AES Session Key missing in Redis for user: " + userId)))
                 .flatMap(aesKey -> {
-                    log.info("PayloadShield: Successfully retrieved AES Session Key for user {}", userId);
+                    log.debug("PayloadShield: Successfully retrieved AES Session Key for user {}", userId);
 
                     ServerHttpRequest decoratedRequest = decryptRequest(exchange.getRequest(), aesKey);
                     ServerHttpResponse decoratedResponse = encryptResponse(exchange.getResponse(), aesKey);
@@ -77,17 +78,33 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
                 })
                 .onErrorResume(PayloadShieldException.class, e -> {
                     log.error("PayloadShield Security Block: {}", e.getMessage(), e);
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                    exchange.getResponse().setStatusCode(e.getStatus());
                     return exchange.getResponse().setComplete();
                 });
     }
 
     private ServerHttpRequest decryptRequest(ServerHttpRequest request, String aesKey) {
+        HttpMethod method = request.getMethod();
+        if (method == HttpMethod.GET || method == HttpMethod.DELETE) {
+            log.trace("PayloadShield: Skipping decryption for {} request to {}", method, request.getURI().getPath());
+            return request;
+
+        }
         return new ServerHttpRequestDecorator(request) {
 
             @Override
             public Flux<DataBuffer> getBody() {
                 return super.getBody().collectList().flatMapMany(dataBuffers -> {
+
+                    if (dataBuffers.isEmpty()) {
+                        log.error("Payload missing for {} request to {}", request.getMethod(),
+                                request.getURI().getPath());
+                        return Flux.error(new PayloadShieldException(
+                                "Missing required encrypted payload for " + request.getMethod() + " request to "
+                                        + request.getURI().getPath(),
+                                HttpStatus.BAD_REQUEST));
+                    }
+
                     DataBufferFactory factory = new DefaultDataBufferFactory();
 
                     DataBuffer joinedBuffer = factory.join(dataBuffers);
@@ -99,14 +116,18 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
                     try {
                         byte[] encryptedBytes = Base64.getDecoder().decode(incomingBytes);
                         String plainJson = AesCryptoUtil.decrypt(encryptedBytes, aesKey);
-                        log.info("Decrypted Payload: {}", plainJson);
+                        log.debug("Decrypted Payload for {} request to {}: {}", request.getMethod(),
+                                request.getURI().getPath(), plainJson);
 
                         byte[] plainBytes = plainJson.getBytes(StandardCharsets.UTF_8);
                         DataBuffer newBuffer = factory.wrap(plainBytes);
 
                         return Flux.just(newBuffer);
                     } catch (Exception e) {
-                        return Flux.error(new PayloadShieldException("Failed to decrypt inbound payload", e));
+                        log.error("Failed to decrypt payload for {} request to {}", request.getMethod(),
+                                request.getURI().getPath(), e);
+                        return Flux.error(new PayloadShieldException("Failed to decrypt inbound payload", e,
+                                HttpStatus.INTERNAL_SERVER_ERROR));
                     }
                 });
             }
@@ -118,10 +139,8 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
                 headers.remove(HttpHeaders.CONTENT_LENGTH);
 
                 String targetContentType = headers.getFirst("X-Target-Content-Type");
-                if(targetContentType == null) {
-                    targetContentType = MediaType.APPLICATION_JSON_VALUE; // Default to JSON if not specified
-                }
-                headers.set(HttpHeaders.CONTENT_TYPE, targetContentType); 
+                headers.set(HttpHeaders.CONTENT_TYPE,
+                        targetContentType != null ? targetContentType : MediaType.APPLICATION_JSON_VALUE);
                 headers.remove("X-Target-Content-Type");
                 return headers;
             }
@@ -139,6 +158,7 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
                 return super.writeWith(fluxBody.collectList().flatMap(dataBuffers -> {
 
                     if (dataBuffers.isEmpty()) {
+                        log.trace("Response body is empty, skipping encryption");
                         return Mono.empty();
                     }
 
@@ -166,7 +186,8 @@ public class PayloadShieldFilter implements GlobalFilter, Ordered {
 
                     } catch (Exception e) {
                         log.error("Failed to encrypt outbound payload", e);
-                        return Mono.error(new PayloadShieldException("Encryption failed", e));
+                        return Mono.error(
+                                new PayloadShieldException("Encryption failed", e, HttpStatus.INTERNAL_SERVER_ERROR));
                     }
                 }));
             }

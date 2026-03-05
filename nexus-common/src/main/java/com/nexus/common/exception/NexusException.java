@@ -17,4 +17,9 @@ public abstract class NexusException extends RuntimeException {
     public NexusException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    public NexusException(String message, Throwable cause, HttpStatus status) {
+        super(message, cause);
+        this.status = status;
+    }
 }

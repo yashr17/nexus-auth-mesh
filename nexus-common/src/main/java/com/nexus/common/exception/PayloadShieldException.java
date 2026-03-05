@@ -14,4 +14,8 @@ public class PayloadShieldException extends NexusException {
     public PayloadShieldException(String message, Throwable cause) {
         super(message, cause);
     }
+
+    public PayloadShieldException(String message, Throwable cause, HttpStatus status) {
+        super(message, cause, status);
+    }
 }
