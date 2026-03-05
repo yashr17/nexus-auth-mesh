@@ -15,8 +15,8 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/fallback")
 public class FallbackController {
 
-    @RequestMapping("/dummy")
-    public Mono<ResponseEntity<ApiErrorResponse>> dummyServiceFallback() {
+    @RequestMapping("/wallet")
+    public Mono<ResponseEntity<ApiErrorResponse>> walletServiceFallback() {
         ApiErrorResponse response = ApiErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.SERVICE_UNAVAILABLE.value())
